@@ -1,0 +1,73 @@
+-- Assignment 8: a canal lock
+--
+-- A lock connects the sea (low water) with a canal (high water). One ship
+-- travels back and forth: from the sea up to the canal, and down again.
+-- The chamber is filled with water from the canal, or emptied into the sea;
+-- this takes one step.
+
+MODULE main
+VAR
+  ship       : {sea, up, canal, down};  -- sea:   the ship is at the sea gate
+                                        -- up:    in the chamber, going up
+                                        -- canal: the ship is at the canal gate
+                                        -- down:  in the chamber, going down
+  level      : {low, high};             -- the water in the chamber
+  gate_sea   : {open, closed};
+  gate_canal : {open, closed};
+
+ASSIGN
+  init(ship)       := sea;
+  init(level)      := low;
+  init(gate_sea)   := closed;
+  init(gate_canal) := closed;
+
+  -- ---------------------------------------------------------- the ship (given)
+  -- When the gate is open, the captain may sail through, or wait.
+  next(ship) := case
+      ship = sea   & gate_sea = open   : {sea, up};     -- enter, or wait
+      ship = up    & gate_canal = open : canal;         -- leave to the canal
+      ship = canal & gate_canal = open : {canal, down}; -- enter, or wait
+      ship = down  & gate_sea = open   : sea;           -- leave to the sea
+      TRUE                             : ship;
+    esac;
+
+  -- ---------------------------------------------------------- the lock
+  -- Worked example (given): the sea gate opens at low water, for a ship at the
+  -- sea gate or a ship in the chamber going down. Otherwise it closes.
+  next(gate_sea) := case
+      level = low & (ship = sea | ship = down) : open;
+      TRUE                                     : closed;
+    esac;
+
+  -- TODO 1: next(gate_canal), following rule R1 on the assignment sheet.
+  next(gate_canal) := case
+      level = high & (ship = canal | ship = up) : open;
+      TRUE                                      : closed;
+    esac;
+
+  -- TODO 2: next(level), following rule R2 on the assignment sheet.
+  next(level) := case
+      gate_sea = closed & gate_canal = closed & ship = up     : high;
+      gate_sea = closed & gate_canal = closed & ship = down   : low;
+      TRUE                                                    : level;
+    esac;
+
+
+-- ------------------------------------------------------------ properties
+-- TODO 3: write the requirements P1 to P4 from the assignment sheet as SPECs.
+
+-- P1: The two gates are never open at the same time.
+SPEC AG !(gate_sea = open & gate_canal = open)
+
+-- P2: A gate is only open when the water in the chamber is at level of its side.
+SPEC AG ((gate_sea = open -> level = low) & (gate_canal = open -> level = high))
+
+-- P3: From every reachable state, the ship can still get to the canal.
+SPEC AG EF ship = canal
+
+-- P4: The ship will get to the canal, whatever happens.
+SPEC AF ship = canal 
+
+-- Trying to fix P4 so it becomes true:
+-- When the ship is in the chamber (ship = up) every path from here on out will make it eventually reach the canal
+SPEC AG (ship = up -> AF ship = canal)
